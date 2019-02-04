@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+.vscode/
+chromedriver.exe
+*.ini
+clips/
+
 # C extensions
 *.so
 
