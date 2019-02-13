@@ -5,7 +5,6 @@ import math
 import threading
 
 import requests
-from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -17,7 +16,7 @@ config.read('config.ini')
 
 # Costants
 CLIENT_ID = config['TWITCH_API']['CLIENT_ID']
-MAX_CLIPS_REQUESTED = 50 # Max number of clips retrieved from Twitch API
+MAX_CLIPS_REQUESTED = config['TWITCH_API']['MAX_CLIPS'] # Max number of clips retrieved from Twitch API
 # Game IDs
 FORTNITE_ID = 33214
 APEX_ID = 511224
@@ -64,15 +63,13 @@ def get_download_links(clips_twitch_response):
     clips_names = []
     for clip in clips_twitch_response:
         driver.get(clip['url'])
-        # Wait until src attribute is generated for the video
-        wait = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "video[src]")))
-
-        html = driver.page_source
-
-        web_tree = BeautifulSoup(html)
         try:
+            # Wait until src attribute is generated for the video
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "video[src]")))
+
             # Find the src url inside a <div class = player-video><video src = DOWNLOAD_URL><\video><\div>
-            url = web_tree.find('div', class_='player-video').find('video').attrs['src']
+            element = driver.find_element_by_css_selector("video[src]")
+            url = element.get_attribute('src')
 
             download_links.append(url)
             clips_names.append(clip['broadcaster_name'])
