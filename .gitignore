@@ -7,6 +7,7 @@ __pycache__/
 chromedriver.exe
 *.ini
 clips/
+*.mp4
 
 # C extensions
 *.so
