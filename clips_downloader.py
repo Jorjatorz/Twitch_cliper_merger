@@ -1,15 +1,15 @@
 import configparser
-from datetime import datetime, timedelta
 import json
 import math
 import os
 import threading
+from datetime import datetime, timedelta
 
 import requests
 from selenium import webdriver
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions
+from selenium.webdriver.support.wait import WebDriverWait
 
 # Read the configuration
 config = configparser.ConfigParser()
@@ -18,6 +18,7 @@ config.read('config.ini')
 # Costants
 CLIENT_ID = config['TWITCH_API']['CLIENT_ID']
 MAX_CLIPS_REQUESTED = config['TWITCH_API']['MAX_CLIPS'] # Max number of clips retrieved from Twitch API
+VIDEO_DURATION_THRESHOLD = 90 # Duration threshold for the total clips duration (i.e. the duration the merged video will have)
 # Game IDs
 FORTNITE_ID = 33214
 APEX_ID = 511224
@@ -62,11 +63,12 @@ def get_download_links(clips_twitch_response):
 
     download_links = []
     clips_names = []
+    total_duration = 0
     for clip in clips_twitch_response:
         driver.get(clip['url'])
         try:
             # Wait until src attribute is generated for the video
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "video[src]")))
+            WebDriverWait(driver, 10).until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, "video[src]")))
 
             # Find the src url inside a <div class = player-video><video src = DOWNLOAD_URL><\video><\div>
             element = driver.find_element_by_css_selector("video[src]")
@@ -74,6 +76,14 @@ def get_download_links(clips_twitch_response):
 
             download_links.append(url)
             clips_names.append(clip['broadcaster_name'])
+
+            # Find the video duration
+            element = driver.find_element_by_css_selector("div.player-slider[aria-valuemax]")
+            duration = int(float(element.get_attribute("aria-valuemax"))) # Convert to int to have a lower bound
+            total_duration += duration
+            if total_duration > VIDEO_DURATION_THRESHOLD:
+                break
+
         except Exception:
             print("ERROR - Can't get the clip download url:{}".format(clip['url']))
 
@@ -96,7 +106,7 @@ def download_clips():
     num_threads = 4 # Number of threads for concurrent download
     clips_per_thread = math.ceil(len(download_urls)/num_threads) # Number of clips each thread will download    
     threads_list = []
-    print("Downloading clips using {} thread - {} clips per thread".format(num_threads, clips_per_thread))
+    print("Downloading {} clips using {} thread - {} clips per thread".format(len(download_urls), num_threads, clips_per_thread))
     # Create the clip_downloader threads and assign to each the clips that each one will download
     for i in range(0, num_threads):
         thread = ClipsDownloaderThread(i * clips_per_thread, i * clips_per_thread + clips_per_thread, download_urls, clips_names)
@@ -145,4 +155,3 @@ class ClipsDownloaderThread(threading.Thread):
             ClipsDownloaderThread.clips_downloaded_counter += 1
             print("{}/{} clips downloaded".format(ClipsDownloaderThread.clips_downloaded_counter, len(self.download_urls))) # Should this be taken out of the lock block?
             ClipsDownloaderThread.lock.release()
-

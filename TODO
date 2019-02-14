@@ -1,3 +1,1 @@
-- Optimización: En vez de descargar todos los videos y luego solo mergear los que entren en 10 minutos se
-podría detectar el tiempo antes de descargar y descargar videos hasta que se cumplan los 10 minutos
 - Add a logger
