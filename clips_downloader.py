@@ -2,6 +2,7 @@ import configparser
 from datetime import datetime, timedelta
 import json
 import math
+import os
 import threading
 
 import requests
@@ -83,13 +84,19 @@ def get_download_links(clips_twitch_response):
 def download_clips():
     """Downloads the most-viewed clips of the last 7 days into a folder
     """
-
+    print("Getting clips download urls")
     clips_twitch_response = get_clips_week()
     download_urls, clips_names = get_download_links(clips_twitch_response)
+
+    # Delete old files
+    print("Deleting files in clip directory")
+    for file in os.listdir('./clips/'):
+        os.remove("./clips/{}".format(file))
 
     num_threads = 4 # Number of threads for concurrent download
     clips_per_thread = math.ceil(len(download_urls)/num_threads) # Number of clips each thread will download    
     threads_list = []
+    print("Downloading clips using {} thread - {} clips per thread".format(num_threads, clips_per_thread))
     # Create the clip_downloader threads and assign to each the clips that each one will download
     for i in range(0, num_threads):
         thread = ClipsDownloaderThread(i * clips_per_thread, i * clips_per_thread + clips_per_thread, download_urls, clips_names)
